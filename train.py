@@ -123,20 +123,20 @@ def validate(opt, val_loader, model):
     img_embs, cap_embs, cap_lens = encode_data(model, val_loader, opt.log_step, logging.info)
 
     # clear duplicate 5*images and keep 1*images
-    img_embs = numpy.array([img_embs[i] for i in range(0, len(img_embs), 5)])
+    img_embs = numpy.array([img_embs[i] for i in range(0, len(img_embs))])
 
     # record computation time of validation
     start = time.time()
-    sims = shard_attn_scores(model, img_embs, cap_embs, cap_lens, opt, shard_size=100)
+    sims = shard_attn_scores(model, img_embs, cap_embs, cap_lens, shard_size=100)
     end = time.time()
     print("calculate similarity time:", end-start)
 
     # caption retrieval
-    (r1, r5, r10, medr, meanr) = i2t(img_embs, cap_embs, cap_lens, sims)
+    (r1, r5, r10, medr, meanr) = i2t(img_embs, sims)
     logging.info("Image to text: %.1f, %.1f, %.1f, %.1f, %.1f" % (r1, r5, r10, medr, meanr))
 
     # image retrieval
-    (r1i, r5i, r10i, medri, meanr) = t2i(img_embs, cap_embs, cap_lens, sims)
+    (r1i, r5i, r10i, medri, meanr) = t2i(img_embs, sims)
     logging.info("Text to image: %.1f, %.1f, %.1f, %.1f, %.1f" % (r1i, r5i, r10i, medri, meanr))
 
     # sum of recalls to be used for early stopping

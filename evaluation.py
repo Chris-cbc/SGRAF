@@ -100,7 +100,12 @@ def encode_data(model, data_loader, log_step=10, logging=print):
             cap_embs = np.zeros((len(data_loader.dataset), max_n_word, cap_emb.size(2)))
             cap_lens = [0] * len(data_loader.dataset)
         # cache embeddings
-        img_embs[ids] = img_emb.data.cpu().numpy().copy()
+        print(img_emb.shape, "\n", img_embs.shape)
+        # img_embs[ids] = img_emb.data.cpu().numpy().copy()
+        for idx, row in enumerate(ids):
+            img_embs[row] = img_emb[idx]
+        img_embs = np.array(img_embs, dtype="float16")
+        # img_embs[ids] = img_emb.data.cpu().numpy().copy()
         cap_embs[ids, :max(lengths), :] = cap_emb.data.cpu().numpy().copy()
 
         for j, nid in enumerate(ids):
@@ -142,21 +147,20 @@ def evalrank(model_path, data_path=None, split='dev', fold5=False):
     print('Computing results...')
     img_embs, cap_embs, cap_lens = encode_data(model, data_loader)
     print('Images: %d, Captions: %d' %
-          (img_embs.shape[0] / 5, cap_embs.shape[0]))
+          (img_embs.shape[0], cap_embs.shape[0]))
 
     if not fold5:
         # no cross-validation, full evaluation
-        img_embs = np.array([img_embs[i] for i in range(0, len(img_embs), 5)])
+        img_embs = np.array([img_embs[i] for i in range(0, len(img_embs))])
 
         # record computation time of validation
         start = time.time()
-        sims = shard_attn_scores(model, img_embs, cap_embs, cap_lens, opt, shard_size=100)
+        sims = shard_attn_scores(model, img_embs, cap_embs, cap_lens, shard_size=100)
         end = time.time()
-        print("calculate similarity time:", end-start)
-
+        print("calculate similarity time:", end - start)
         # bi-directional retrieval
-        r, rt = i2t(img_embs, cap_embs, cap_lens, sims, return_ranks=True)
-        ri, rti = t2i(img_embs, cap_embs, cap_lens, sims, return_ranks=True)
+        r, rt = i2t(img_embs, sims, return_ranks=True)
+        ri, rti = t2i(img_embs, sims, return_ranks=True)
         ar = (r[0] + r[1] + r[2]) / 3
         ari = (ri[0] + ri[1] + ri[2]) / 3
         rsum = r[0] + r[1] + r[2] + ri[0] + ri[1] + ri[2]
@@ -174,13 +178,13 @@ def evalrank(model_path, data_path=None, split='dev', fold5=False):
             cap_lens_shard = cap_lens[i * 5000:(i + 1) * 5000]
 
             start = time.time()
-            sims = shard_attn_scores(model, img_embs_shard, cap_embs_shard, cap_lens_shard, opt, shard_size=100)
+            sims = shard_attn_scores(model, img_embs_shard, cap_embs_shard, cap_lens_shard, shard_size=100)
             end = time.time()
             print("calculate similarity time:", end-start)
 
-            r, rt0 = i2t(img_embs_shard, cap_embs_shard, cap_lens_shard, sims, return_ranks=True)
+            r, rt0 = i2t(img_embs_shard, sims, return_ranks=True)
             print("Image to text: %.1f, %.1f, %.1f, %.1f, %.1f" % r)
-            ri, rti0 = t2i(img_embs_shard, cap_embs_shard, cap_lens_shard, sims, return_ranks=True)
+            ri, rti0 = t2i(img_embs_shard, sims, return_ranks=True)
             print("Text to image: %.1f, %.1f, %.1f, %.1f, %.1f" % ri)
 
             if i == 0:
@@ -203,7 +207,7 @@ def evalrank(model_path, data_path=None, split='dev', fold5=False):
               mean_metrics[5:10])
 
 
-def shard_attn_scores(model, img_embs, cap_embs, cap_lens, opt, shard_size=100):
+def shard_attn_scores(model, img_embs, cap_embs, cap_lens, shard_size=100):
     n_im_shard = (len(img_embs) - 1) // shard_size + 1
     n_cap_shard = (len(cap_embs) - 1) // shard_size + 1
 
@@ -215,8 +219,10 @@ def shard_attn_scores(model, img_embs, cap_embs, cap_lens, opt, shard_size=100):
             ca_start, ca_end = shard_size * j, min(shard_size * (j + 1), len(cap_embs))
 
             with torch.no_grad():
-                im = torch.from_numpy(img_embs[im_start:im_end]).float().cuda()
-                ca = torch.from_numpy(cap_embs[ca_start:ca_end]).float().cuda()
+                # im = torch.from_numpy(img_embs[im_start:im_end]).float().cuda()
+                # ca = torch.from_numpy(cap_embs[ca_start:ca_end]).float().cuda()
+                im = torch.from_numpy(img_embs[im_start:im_end]).float()
+                ca = torch.from_numpy(cap_embs[ca_start:ca_end]).float()
                 l = cap_lens[ca_start:ca_end]
                 sim = model.forward_sim(im, ca, l)
 
@@ -225,7 +231,7 @@ def shard_attn_scores(model, img_embs, cap_embs, cap_lens, opt, shard_size=100):
     return sims
 
 
-def i2t(images, captions, caplens, sims, npts=None, return_ranks=False):
+def i2t_bak(images, sims, return_ranks=False):
     """
     Images->Text (Image Annotation)
     Images: (N, n_region, d) matrix of images
@@ -234,14 +240,15 @@ def i2t(images, captions, caplens, sims, npts=None, return_ranks=False):
     sims: (N, 5N) matrix of similarity im-cap
     """
     npts = images.shape[0]
-    ranks = np.zeros(npts)
     top1 = np.zeros(npts)
+    ranks = np.zeros(npts)
 
     for index in range(npts):
         inds = np.argsort(sims[index])[::-1]
 
         # Score
         rank = 1e20
+        # 这里的score算法是针对一张图片对应每5句文本作为一个caption的格式，需要改进
         for i in range(5 * index, 5 * index + 5, 1):
             tmp = np.where(inds == i)[0][0]
             if tmp < rank:
@@ -261,7 +268,31 @@ def i2t(images, captions, caplens, sims, npts=None, return_ranks=False):
         return (r1, r5, r10, medr, meanr)
 
 
-def t2i(images, captions, caplens, sims, npts=None, return_ranks=False):
+def i2t(images, sims, return_ranks=False):
+    npts = images.shape[0]
+    ranks = np.zeros(npts)
+    top1 = np.zeros(npts)
+
+    for index in range(npts):
+        inds = np.argsort(sims[index])[::-1]
+        rank = np.where(inds == index)[0][0]
+        # Score
+        top1[index] = inds[0]
+        ranks[index] = rank
+
+    # Compute metrics
+    r1 = 100.0 * len(np.where(ranks < 1)[0]) / len(ranks)
+    r5 = 100.0 * len(np.where(ranks < 5)[0]) / len(ranks)
+    r10 = 100.0 * len(np.where(ranks < 10)[0]) / len(ranks)
+    medr = np.floor(np.median(ranks)) + 1
+    meanr = ranks.mean() + 1
+    if return_ranks:
+        return (r1, r5, r10, medr, meanr), (ranks, top1)
+    else:
+        return (r1, r5, r10, medr, meanr)
+
+
+def t2i_bak(images, sims, return_ranks=False):
     """
     Text->Images (Image Search)
     Images: (N, n_region, d) matrix of images
@@ -294,6 +325,29 @@ def t2i(images, captions, caplens, sims, npts=None, return_ranks=False):
         return (r1, r5, r10, medr, meanr)
 
 
+def t2i(images, sims, return_ranks=False):
+    npts = images.shape[0]
+    ranks = np.zeros(npts)
+    top1 = np.zeros(npts)
+    sims = sims.T
+    for index in range(npts):
+        inds = np.argsort(sims[index])[::-1]
+        rank = np.where(inds == index)[0][0]
+        # Score
+        top1[index] = inds[0]
+        ranks[index] = rank
+    # Compute metrics
+    r1 = 100.0 * len(np.where(ranks < 1)[0]) / len(ranks)
+    r5 = 100.0 * len(np.where(ranks < 5)[0]) / len(ranks)
+    r10 = 100.0 * len(np.where(ranks < 10)[0]) / len(ranks)
+    medr = np.floor(np.median(ranks)) + 1
+    meanr = ranks.mean() + 1
+    if return_ranks:
+        return (r1, r5, r10, medr, meanr), (ranks, top1)
+    else:
+        return (r1, r5, r10, medr, meanr)
+
+
 if __name__ == '__main__':
-    evalrank("./runs/Flickr30K_SGRAF/f30k_SAF/model_best.pth.tar",
-             data_path='./data', split="test", fold5=False)
+    evalrank("./runs/f30k_SGR/checkpoint/model_best.pth.tar",
+             data_path='../SGRAF/', split="train", fold5=False)

@@ -301,11 +301,11 @@ class EncoderSimilarity(nn.Module):
     Returns:
         - sim_all: final image-text similarities, shape: (batch_size, batch_size).
     """
-    def __init__(self, embed_size, sim_dim, module_name='AVE', sgr_step=3):
+    def __init__(self, embed_size, sim_dim, module_name='AVE', sgr_step=3, image_width=36):
         super(EncoderSimilarity, self).__init__()
         self.module_name = module_name
 
-        self.v_global_w = VisualSA(embed_size, 0.4, 36)
+        self.v_global_w = VisualSA(embed_size, 0.4, image_width)
         self.t_global_w = TextSA(embed_size, 0.4)
 
         self.sim_tranloc_w = nn.Linear(embed_size, sim_dim)
@@ -440,8 +440,9 @@ class ContrastiveLoss(nn.Module):
 
         # clear diagonals
         mask = torch.eye(scores.size(0)) > .5
-        if torch.cuda.is_available():
-            I = mask.cuda()
+        # if torch.cuda.is_available():
+        #     I = mask.cuda()
+        I = mask
         cost_s = cost_s.masked_fill_(I, 0)
         cost_im = cost_im.masked_fill_(I, 0)
 
@@ -462,17 +463,17 @@ class SGRAF(object):
         self.img_enc = EncoderImage(opt.img_dim, opt.embed_size,
                                     no_imgnorm=opt.no_imgnorm)
         self.txt_enc = EncoderText(opt.vocab_size, opt.word_dim,
-                                   opt.embed_size, opt.num_layers, 
-                                   use_bi_gru=opt.bi_gru,  
+                                   opt.embed_size, opt.num_layers,
+                                   use_bi_gru=opt.bi_gru,
                                    no_txtnorm=opt.no_txtnorm)
         self.sim_enc = EncoderSimilarity(opt.embed_size, opt.sim_dim,
-                                         opt.module_name, opt.sgr_step)
+                                         opt.module_name, opt.sgr_step, opt.img_width)
 
-        if torch.cuda.is_available():
-            self.img_enc.cuda()
-            self.txt_enc.cuda()
-            self.sim_enc.cuda()
-            cudnn.benchmark = True
+        # if torch.cuda.is_available():
+        #     self.img_enc.cuda()
+        #     self.txt_enc.cuda()
+        #     self.sim_enc.cuda()
+        #     cudnn.benchmark = True
 
         # Loss and Optimizer
         self.criterion = ContrastiveLoss(margin=opt.margin,
@@ -508,9 +509,9 @@ class SGRAF(object):
 
     def forward_emb(self, images, captions, lengths):
         """Compute the image and caption embeddings"""
-        if torch.cuda.is_available():
-            images = images.cuda()
-            captions = captions.cuda()
+        # if torch.cuda.is_available():
+        #     images = images.cuda()
+        #     captions = captions.cuda()
 
         # Forward feature encoding
         img_embs = self.img_enc(images)

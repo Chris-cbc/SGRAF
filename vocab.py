@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------
 """Vocabulary wrapper"""
 
-import nltk
+import jieba
 from collections import Counter
 import argparse
 import os
@@ -77,8 +77,7 @@ def build_vocab(data_path, data_name, caption_file, threshold):
         full_path = os.path.join(os.path.join(data_path, data_name), path)
         captions = from_txt(full_path)
         for i, caption in enumerate(captions):
-            tokens = nltk.tokenize.word_tokenize(
-                caption.lower().decode('utf-8'))
+            tokens = [w for w in jieba.cut(caption.lower()) if w not in {" ", "."}]
             counter.update(tokens)
 
             if i % 1000 == 0:

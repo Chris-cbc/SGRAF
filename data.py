@@ -2,9 +2,8 @@
 
 import torch
 import torch.utils.data as data
-
+import jieba
 import os
-import nltk
 import numpy as np
 
 
@@ -27,27 +26,28 @@ class PrecompDataset(data.Dataset):
         # for line in open(loc+'%s_caps.txt' % data_split, 'r', encoding='utf-8'):
         #     self.captions.append(line.strip())
 
-        for line in open(loc+'%s_caps.txt' % data_split, 'rb'):
-            self.captions.append(line.strip())
+        for line in open(loc + '%s_caps.txt' % data_split, 'rb'):
+            if line.strip():
+                self.captions.append(line.strip())
 
         # load the image features
-        self.images = np.load(loc+'%s_ims.npy' % data_split)
+        self.images = np.load(loc + '%s_ims.npy' % data_split)
         self.length = len(self.captions)
 
         # rkiros data has redundancy in images, we divide by 5
-        if self.images.shape[0] != self.length:
-            self.im_div = 5
-        else:
-            self.im_div = 1
+        # if self.images.shape[0] != self.length:
+        #     self.im_div = 5
+        # else:
+        #     self.im_div = 1
 
         # the development set for coco is large and so validation would be slow
-        if data_split == 'dev':
-            self.length = 5000
+        # if data_split == 'dev':
+        #     self.length = 5000
 
     def __getitem__(self, index):
         # handle the image redundancy
-        img_id = index//self.im_div
-        image = torch.Tensor(self.images[img_id])
+        # img_id = index//self.im_div
+        image = torch.Tensor(self.images[index])
         caption = self.captions[index]
         vocab = self.vocab
 
@@ -57,14 +57,15 @@ class PrecompDataset(data.Dataset):
         # tokens = nltk.tokenize.word_tokenize(str(caption).lower())
 
         # convert caption (string) to word ids.
-        tokens = nltk.tokenize.word_tokenize(caption.lower().decode('utf-8'))
+        tokens = [w for w in jieba.cut(caption.lower()) if w not in {" ", "."}]
+        # tokens = nltk.tokenize.word_tokenize(caption.lower().decode('utf-8'))
         caption = []
         caption.append(vocab('<start>'))
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab('<end>'))
         target = torch.Tensor(caption)
 
-        return image, target, index, img_id
+        return image, target, index, index
 
     def __len__(self):
         return self.length
@@ -102,7 +103,6 @@ def collate_fn(data):
 def get_precomp_loader(data_path, data_split, vocab, opt, batch_size=100,
                        shuffle=True, num_workers=2):
     dset = PrecompDataset(data_path, data_split, vocab)
-
     data_loader = torch.utils.data.DataLoader(dataset=dset,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
@@ -119,8 +119,8 @@ def get_loaders(data_name, vocab, batch_size, workers, opt):
     train_loader = get_precomp_loader(dpath, 'train', vocab, opt,
                                       batch_size, True, workers)
     # get the val_loader
-    val_loader = get_precomp_loader(dpath, 'dev', vocab, opt,
-                                    100, False, workers)
+    val_loader = get_precomp_loader(dpath, 'train', vocab, opt,
+                                    batch_size, False, workers)
     return train_loader, val_loader
 
 
