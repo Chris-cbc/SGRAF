@@ -104,7 +104,7 @@ def encode_data(model, data_loader, log_step=10, logging=print):
         # img_embs[ids] = img_emb.data.cpu().numpy().copy()
         for idx, row in enumerate(ids):
             img_embs[row] = img_emb[idx]
-        img_embs = np.array(img_embs, dtype="float16")
+        img_embs = np.array(img_embs)
         # img_embs[ids] = img_emb.data.cpu().numpy().copy()
         cap_embs[ids, :max(lengths), :] = cap_emb.data.cpu().numpy().copy()
 

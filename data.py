@@ -21,6 +21,7 @@ class PrecompDataset(data.Dataset):
         self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()]
         # load the image features
         self.images = np.load(loc + '%s_ims.npy' % data_split)
+        # self.images = np.memmap(loc + '%s_ims.npy' % data_split, dtype='float32', shape=(51,280,280))
         self.length = len(self.captions)
         # the development set for coco is large and so validation would be slow
         # if data_split == 'dev':
@@ -87,12 +88,12 @@ def get_loaders(data_name, vocab, batch_size, workers, opt):
     dpath = os.path.join(opt.data_path, data_name)
 
     # get the train_loader
-    train_loader = get_precomp_loader(dpath, 'train', vocab, opt,
-                                      batch_size, True, workers)
+    # train_loader = get_precomp_loader(dpath, 'train', vocab, opt,
+    #                                   batch_size, True, workers)
     # get the val_loader
-    val_loader = get_precomp_loader(dpath, 'train', vocab, opt,
-                                    batch_size, False, workers)
-    return train_loader, val_loader
+    df_loader = get_precomp_loader(dpath, 'train', vocab, opt,
+                                   batch_size, False, workers)
+    return df_loader
 
 
 def get_test_loader(split_name, data_name, vocab, batch_size, workers, opt):

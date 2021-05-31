@@ -36,7 +36,7 @@ def main():
     opt.vocab_size = len(vocab)
 
     # Load data loaders
-    train_loader, val_loader = data.get_loaders(opt.data_name, vocab, opt.batch_size, opt.workers, opt)
+    train_loader = val_loader = data.get_loaders(opt.data_name, vocab, opt.batch_size, opt.workers, opt)
 
     # Construct the model
     model = SGRAF(opt)
