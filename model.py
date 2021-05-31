@@ -13,6 +13,9 @@ import numpy as np
 from collections import OrderedDict
 
 
+# torch.set_default_dtype(torch.float16)
+
+
 def l1norm(X, dim, eps=1e-8):
     """L1-normalize columns of X"""
     norm = torch.abs(X).sum(dim=dim, keepdim=True) + eps

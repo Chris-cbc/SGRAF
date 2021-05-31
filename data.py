@@ -16,55 +16,26 @@ class PrecompDataset(data.Dataset):
     def __init__(self, data_path, data_split, vocab):
         self.vocab = vocab
         loc = data_path + '/'
-
         # load the raw captions
         self.captions = []
-
-        # -------- The main difference between python2.7 and python3.6 --------#
-        # The suggestion from Hongguang Zhu (https://github.com/KevinLight831)
-        # ---------------------------------------------------------------------#
-        # for line in open(loc+'%s_caps.txt' % data_split, 'r', encoding='utf-8'):
-        #     self.captions.append(line.strip())
-
-        for line in open(loc + '%s_caps.txt' % data_split, 'rb'):
-            if line.strip():
-                self.captions.append(line.strip())
-
+        self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()]
         # load the image features
         self.images = np.load(loc + '%s_ims.npy' % data_split)
         self.length = len(self.captions)
-
-        # rkiros data has redundancy in images, we divide by 5
-        # if self.images.shape[0] != self.length:
-        #     self.im_div = 5
-        # else:
-        #     self.im_div = 1
-
         # the development set for coco is large and so validation would be slow
         # if data_split == 'dev':
         #     self.length = 5000
 
     def __getitem__(self, index):
-        # handle the image redundancy
-        # img_id = index//self.im_div
         image = torch.Tensor(self.images[index])
         caption = self.captions[index]
         vocab = self.vocab
-
-        # -------- The main difference between python2.7 and python3.6 --------#
-        # The suggestion from Hongguang Zhu(https://github.com/KevinLight831)
-        # ---------------------------------------------------------------------#
-        # tokens = nltk.tokenize.word_tokenize(str(caption).lower())
-
         # convert caption (string) to word ids.
         tokens = [w for w in jieba.cut(caption.lower()) if w not in {" ", "."}]
-        # tokens = nltk.tokenize.word_tokenize(caption.lower().decode('utf-8'))
-        caption = []
-        caption.append(vocab('<start>'))
+        caption = [vocab('<start>')]
         caption.extend([vocab(token) for token in tokens])
         caption.append(vocab('<end>'))
         target = torch.Tensor(caption)
-
         return image, target, index, index
 
     def __len__(self):

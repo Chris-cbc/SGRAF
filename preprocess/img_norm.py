@@ -17,7 +17,7 @@ def img_show(img, name=""):
     cv2.destroyAllWindows()
 
 
-def resize_image(image, height=360, width=360):
+def resize_image(image, height, width):
     top, bottom, left, right = (0, 0, 0, 0)
     # 获取图片尺寸
     h, w, _ = image.shape
@@ -47,11 +47,11 @@ def norm(img):
     return img
 
 
-def preprocess_image(array):
+def preprocess_image(array, height, width):
     # img_show(image, "img")
     # img_show(image_normed, "img_normed")
     # 将所有图像加工成长宽定维
-    image_resized = resize_image(array)
+    image_resized = resize_image(array, height, width)
     image_normed = norm(image_resized)
     # 将图像的RGB三通道转2d灰度化
     image_preprocessed = cv2.cvtColor(image_normed, cv2.COLOR_RGB2GRAY)
@@ -63,11 +63,14 @@ if __name__ == "__main__":
     # 读取图像
     parser = argparse.ArgumentParser()
     # --------------------------- data path -------------------------#
-    parser.add_argument('--file_number', default=60)
+    parser.add_argument('--file_number', '--file_number', default=50)
+    parser.add_argument('--height', '--height', default=280)
+    parser.add_argument('--width', '--width', default=280)
     opt = parser.parse_args()
     stack = list()
+
     img_npy_folder = "G:/image_npy_11/"
-    img_info_folder = "F:/SGRAF/data/"
+    img_info_folder = "F:/SGRAF/f30k_precomp/"
     img_info = img_info_folder + "img.json"
     files = os.listdir(img_npy_folder)
     with open(img_info, "r") as ims:
@@ -75,18 +78,18 @@ if __name__ == "__main__":
     c = 0
     with open(img_info_folder + "train_caps.txt", "w") as cap:
         for file in files:
-            c += 1
             if c > opt.file_number:
                 break
             img_path = img_npy_folder + file
             name = file.replace(".npy", ".jpg")
             if name in img_info_dict:
                 image = np.load(img_path)
-                img = preprocess_image(image)
+                img = preprocess_image(image, height=opt.height, width=opt.width)
                 caption = "".join(img_info_dict[name])
                 cap.write(caption)
                 cap.write("\n")
                 stack.append(img)
+                c += 1
             else:
                 print(file)
     np.save(img_info_folder + "train_ims.npy", np.array(stack))

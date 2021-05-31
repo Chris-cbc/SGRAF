@@ -41,9 +41,9 @@ def parse_opt():
                         help='Use max instead of sum in the rank loss.')
 
     # ------------------------- model setting -----------------------#
-    parser.add_argument('--img_dim', default=360, type=int,
+    parser.add_argument('--img_dim', default=280, type=int,
                         help='Dimensionality of the image embedding.')
-    parser.add_argument('--img_width', default=360, type=int,
+    parser.add_argument('--img_width', default=280, type=int,
                         help='Dimensionality of the image embedding width.')
     parser.add_argument('--word_dim', default=300, type=int,
                         help='Dimensionality of the word embedding.')
