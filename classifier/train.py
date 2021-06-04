@@ -67,14 +67,6 @@ def train(model, n_epochs):
             valid_loss_min = valid_loss
 
 
-# def train(model):
-#     # Construct data_loader, optimizer, etc.
-#     for data, labels in data_loader:
-#         optimizer.zero_grad()
-#         loss_fn(model(data), labels).backward()
-#         optimizer.step()  # This will update the shared parameters
-
-
 if __name__ == '__main__':
     # initialize the NN
     model = Net()

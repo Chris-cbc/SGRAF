@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.init as init
+import torch.nn.functional as F
 from data_loader import train_loader, valid_loader, test_loader
 
 
@@ -10,16 +11,19 @@ from data_loader import train_loader, valid_loader, test_loader
 class Net(nn.Module):
     def __init__(self, num_inputs, num_outputs, num_hiddens):
         super(Net, self).__init__()
+        self.dropout = nn.Dropout(0.1)
         self.l1 = nn.Linear(num_inputs, num_hiddens)
-        self.relu1 = nn.ReLU()
-        self.l2 = nn.Linear(num_hiddens, num_outputs)
+        self.l2 = nn.Linear(num_hiddens, num_hiddens)
+        self.l3 = nn.Linear(num_hiddens, num_outputs)
 
     def forward(self, X):
         X = X.view(X.shape[0], -1)
-        o1 = self.relu1(self.l1(X))
-        o2 = self.l2(o1)
-
-        return o2
+        X = F.relu(self.l1(X))
+        X = self.dropout(X)
+        X = F.relu(self.l2(X))
+        X = self.dropout(X)
+        X = self.l3(X)
+        return X
 
     def init_params(self):
         for param in self.parameters():
@@ -27,7 +31,7 @@ class Net(nn.Module):
             init.normal_(param, mean=0, std=0.01)
 
 
-num_inputs, num_outputs, num_hiddens = 28 * 28, 10, 256
+num_inputs, num_outputs, num_hiddens = 28 * 28, 10, 1024
 net = Net(num_inputs, num_outputs, num_hiddens)
 net.init_params()
 # 定义损失函数
@@ -47,7 +51,7 @@ def evaluate_accuracy(data_iter, net):
     return acc_sum / n
 
 
-num_epochs = 5
+num_epochs = 50
 
 
 def train():
@@ -57,7 +61,6 @@ def train():
             y_hat = net(X)  # 前向传播
             l = loss(y_hat, y).sum()  # 计算loss
             l.backward()  # 反向传播
-
             optimizer.step()  # 参数更新
             optimizer.zero_grad()  # 清空梯度
 

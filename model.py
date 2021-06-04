@@ -40,8 +40,8 @@ def cosine_sim(x1, x2, dim=-1, eps=1e-8):
 class EncoderImage(nn.Module):
     """
     Build local region representations by common-used FC-layer.
-    Args: - images: raw local detected regions, shape: (batch_size, 36, 2048).
-    Returns: - img_emb: finial local region embeddings, shape:  (batch_size, 36, 1024).
+    Args: - images: raw local detected regions, shape: (batch_size, height, width).
+    Returns: - img_emb: finial local region embeddings, shape:  (batch_size, height, embedding_size(1024)).
     """
     def __init__(self, img_dim, embed_size, no_imgnorm=False):
         super(EncoderImage, self).__init__()
@@ -86,15 +86,16 @@ class EncoderText(nn.Module):
     Args: - images: raw local word ids, shape: (batch_size, L).
     Returns: - img_emb: final local word embeddings, shape: (batch_size, L, 1024).
     """
+
     def __init__(self, vocab_size, word_dim, embed_size, num_layers,
-                 use_bi_gru=False, no_txtnorm=False):
+                 use_bi_gru=False, no_txtnorm=False, dropout=0.2):
         super(EncoderText, self).__init__()
         self.embed_size = embed_size
         self.no_txtnorm = no_txtnorm
 
         # word embedding
         self.embed = nn.Embedding(vocab_size, word_dim)
-        self.dropout = nn.Dropout(0.4)
+        self.dropout = nn.Dropout(dropout)
 
         # caption embedding
         self.use_bi_gru = use_bi_gru
@@ -298,17 +299,19 @@ class AttentionFiltration(nn.Module):
 class EncoderSimilarity(nn.Module):
     """
     Compute the image-text similarity by SGR, SAF, AVE
-    Args: - img_emb: local region embeddings, shape: (batch_size, 36, 1024)
-          - cap_emb: local word embeddings, shape: (batch_size, L, 1024)
+    Args: - img_emb: local region embeddings, shape: (batch_size, width, embedding size(1024))
+          - cap_emb: local word embeddings, shape: (batch_size, L, embedding size(1024))
     Returns:
         - sim_all: final image-text similarities, shape: (batch_size, batch_size).
     """
-    def __init__(self, embed_size, sim_dim, module_name='AVE', sgr_step=3, image_width=36):
+
+    def __init__(self, embed_size, sim_dim, module_name='AVE',
+                 sgr_step=3, image_width=36, dropout4vsa=0.2, dropout4tsa=0.2):
         super(EncoderSimilarity, self).__init__()
         self.module_name = module_name
 
-        self.v_global_w = VisualSA(embed_size, 0.4, image_width)
-        self.t_global_w = TextSA(embed_size, 0.4)
+        self.v_global_w = VisualSA(embed_size, dropout4vsa, image_width)
+        self.t_global_w = TextSA(embed_size, dropout4tsa)
 
         self.sim_tranloc_w = nn.Linear(embed_size, sim_dim)
         self.sim_tranglo_w = nn.Linear(embed_size, sim_dim)
@@ -467,9 +470,9 @@ class SGRAF(object):
         self.txt_enc = EncoderText(opt.vocab_size, opt.word_dim,
                                    opt.embed_size, opt.num_layers,
                                    use_bi_gru=opt.bi_gru,
-                                   no_txtnorm=opt.no_txtnorm)
+                                   no_txtnorm=opt.no_txtnorm, dropout=opt.dropout4text)
         self.sim_enc = EncoderSimilarity(opt.embed_size, opt.sim_dim,
-                                         opt.module_name, opt.sgr_step, opt.img_width)
+                                         opt.module_name, opt.sgr_step, opt.img_width, opt.dropout4vsa, opt.dropout4tsa)
 
         # if torch.cuda.is_available():
         #     self.img_enc.cuda()

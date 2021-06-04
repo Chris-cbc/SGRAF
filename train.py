@@ -48,7 +48,7 @@ def main():
         print(opt.logger_name)
         print(opt.model_name)
 
-        adjust_learning_rate(opt, model.optimizer, epoch)
+        adjust_learning_rate(opt, model.optimizer, epoch, alpha=opt.lr_decay_rate)
 
         # train for one epoch
         train(opt, train_loader, model, epoch, val_loader)
@@ -178,12 +178,12 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar', prefix=''):
             raise error
 
 
-def adjust_learning_rate(opt, optimizer, epoch):
+def adjust_learning_rate(opt, optimizer, epoch, alpha=0.1):
     """
     Sets the learning rate to the initial LR
     decayed by 10 after opt.lr_update epoch
     """
-    lr = opt.learning_rate * (0.1 ** (epoch // opt.lr_update))
+    lr = opt.learning_rate * (alpha ** (epoch // opt.lr_update))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 

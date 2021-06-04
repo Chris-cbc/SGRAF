@@ -349,5 +349,5 @@ def t2i(images, sims, return_ranks=False):
 
 
 if __name__ == '__main__':
-    evalrank("./runs/f30k_SGR/checkpoint/model_best.pth.tar",
+    evalrank("./runs/f30k_SGR/log/model_best.pth.tar",
              data_path='../SGRAF/', split="train", fold5=False)
