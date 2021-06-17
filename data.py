@@ -13,14 +13,15 @@ class PrecompDataset(data.Dataset):
     Possible options: f30k_precomp, coco_precomp
     """
 
-    def __init__(self, data_path, data_split, vocab):
+    def __init__(self, data_path, data_split, vocab, opt):
         self.vocab = vocab
         loc = data_path + '/'
         # load the raw captions
         self.captions = []
-        self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()]
+        self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()][
+                        :opt.data_size]
         # load the image features
-        self.images = np.load(loc + '%s_ims.npy' % data_split)
+        self.images = np.load(loc + '%s_ims.npy' % data_split)[:opt.data_size]
         # self.images = np.memmap(loc + '%s_ims.npy' % data_split, dtype='float32', shape=(51,280,280))
         self.length = len(self.captions)
         # the development set for coco is large and so validation would be slow
@@ -74,7 +75,7 @@ def collate_fn(data):
 
 def get_precomp_loader(data_path, data_split, vocab, opt, batch_size=100,
                        shuffle=True, num_workers=2):
-    dset = PrecompDataset(data_path, data_split, vocab)
+    dset = PrecompDataset(data_path, data_split, vocab, opt)
     data_loader = torch.utils.data.DataLoader(dataset=dset,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
