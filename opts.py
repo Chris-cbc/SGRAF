@@ -19,12 +19,14 @@ def parse_opt():
                         help='Path to save Tensorboard log.')
 
     # ----------------------- training setting ----------------------#
-    parser.add_argument('--batch_size', '--batch_size', default=168, type=int,
+    parser.add_argument('--batch_size', '--batch_size', default=128, type=int,
                         help='Size of a training mini-batch.')
-    parser.add_argument('--num_epochs', '--num_epochs', default=500, type=int,
+    parser.add_argument('--num_epochs', '--num_epochs', default=1000, type=int,
                         help='Number of training epochs.')
     parser.add_argument('--data_size', '--data_size', default=10000, type=int,
                         help='Number of data.')
+    parser.add_argument('--val_size', '--val_size', default=1000, type=int,
+                        help='Number of validation dataset.')
     parser.add_argument('--lr_update', '--lr_update', default=50, type=int,
                         help='Number of epochs to update the learning rate.')
     parser.add_argument('--lr_decay_rate', '--lr_decay_rate', default=0.8, type=float,

@@ -15,18 +15,23 @@ class PrecompDataset(data.Dataset):
 
     def __init__(self, data_path, data_split, vocab, opt):
         self.vocab = vocab
+        if data_split == 'val':
+            data_size = opt.val_size
+        else:
+            data_size = opt.data_size
         loc = data_path + '/'
         # load the raw captions
         self.captions = []
-        self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()][
-                        :opt.data_size]
+        # self.captions = [line.strip() for line in open(loc + '%s_caps.txt' % data_split, 'rb') if line.strip()][
+        #                 :data_size]
+        self.captions = [line.strip() for line in open(loc + 'train_caps.txt', 'rb') if line.strip()][
+                        :data_size]
         # load the image features
-        self.images = np.load(loc + '%s_ims.npy' % data_split)[:opt.data_size]
+        # self.images = np.load(loc + '%s_ims.npy' % data_split)[:data_size]
+        self.images = np.load(loc + 'train_ims.npy')[:data_size]
         # self.images = np.memmap(loc + '%s_ims.npy' % data_split, dtype='float32', shape=(51,280,280))
         self.length = len(self.captions)
         # the development set for coco is large and so validation would be slow
-        # if data_split == 'dev':
-        #     self.length = 5000
 
     def __getitem__(self, index):
         image = torch.Tensor(self.images[index])
@@ -89,12 +94,12 @@ def get_loaders(data_name, vocab, batch_size, workers, opt):
     dpath = os.path.join(opt.data_path, data_name)
 
     # get the train_loader
-    # train_loader = get_precomp_loader(dpath, 'train', vocab, opt,
-    #                                   batch_size, True, workers)
+    train_loader = get_precomp_loader(dpath, 'train', vocab, opt,
+                                      batch_size, True, workers)
     # get the val_loader
-    df_loader = get_precomp_loader(dpath, 'train', vocab, opt,
-                                   batch_size, False, workers)
-    return df_loader
+    val_loader = get_precomp_loader(dpath, 'val', vocab, opt,
+                                    batch_size, True, workers)
+    return train_loader, val_loader
 
 
 def get_test_loader(split_name, data_name, vocab, batch_size, workers, opt):
